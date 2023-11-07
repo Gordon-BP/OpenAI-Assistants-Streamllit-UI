@@ -179,7 +179,6 @@ def getBotResponse(userEvent: Event) -> Event:
         messages = client.beta.threads.messages.list(
             thread_id=st.session_state.threadId
         )
-        logger.debug(messages)
         event_dict["botReply"] = [
             BotMessage(
                 type="text",

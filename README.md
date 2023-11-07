@@ -1,7 +1,7 @@
 # OpenAI-Assistants-Streamllit-UI
 A basic streamlit UI with pydantic classes for consuming API calls from the new OpenAI assistants API
 
-![here is what it looks like](/img/screenshot.png)
+![here is what it looks like](/img/ss-with-buttons.png)
 
 
 
