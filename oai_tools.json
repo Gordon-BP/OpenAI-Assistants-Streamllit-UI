@@ -1,4 +1,4 @@
-{
+[{
     "name": "show_buttons",
     "description": "Show a set of buttons choices to the user",
     "parameters": {
@@ -30,4 +30,16 @@
       "choices"
     ]
 }
-  }
+  },{
+    "name":"generate_image",
+    "description":"use DALLE 3 to generate a picture",
+    "parameters":{
+      "type":"object",
+      "properties":{
+        "prompt":{
+        "type":"string",
+        "description":"a prompt to send to DALLE 3 to guide its image generation"}
+      }
+    },
+    "required":["prompt"]
+  }]

@@ -26,7 +26,7 @@ assistant = client.beta.assistants.create(
   description="Let's have some fun! You will generate short, zany quizzes in the style of mid 2010's buzzfeed quizzicles",
   instructions = instructions,
   model="gpt-4-1106-preview",
-  tools=[{"type": "function", "function":data}],
+  tools=[{"type": "function", "function":func} for func in data],
 )
 
 set_key(dotenv_path, 'OPENAI_ASSISTANT_ID', assistant.id) 

@@ -3,7 +3,7 @@ A basic streamlit UI with pydantic classes for consuming API calls from the new 
 
 ![we get rate limited an awful lot these days](/img/rate_limit.png)
 
-## 😅 The poor servers are under a lot of load right now, people are excited
+## 😅 Tried to get a good screenshot but the poor servers are under a lot of load right now
 
 
 ## Quick Start
@@ -60,7 +60,7 @@ Includes pydantic classes for all data types, type hints everywhere, and docstri
 
 - [ ] More tools for bot message types:
     - [ ] Dropdowns
-    - [ ] Images
+    - [x] Images
     - [ ] Carousels
-- [ ] Add DALLE-3 tool when it is available
+- [x] Add DALLE-3 tool
 - [ ] Save quiz questions and answers
