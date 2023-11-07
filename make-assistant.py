@@ -10,7 +10,7 @@ load_dotenv()
 
 # Set new values or modify existing ones
 client = openai.Client(api_key = os.environ['OPENAI_API_KEY'])
-name = (name := os.environ.get('ASSISTANT_NAME')) or "Sleepover Quiz Bot"
+name = (name := os.environ.get('OPENAI_ASSISTANT_NAME')) or "My Bot"
 if "ASSISTANT_INSTRUCTIONS" in os.environ:
     instructions = os.environ["ASSISTANT_INSTRUCTIONS"]
 else:
@@ -22,7 +22,7 @@ with open("oai_tools.json", "r") as file:
 # Convert the Python object into a JSON string
 json_string = json.dumps(data)
 assistant = client.beta.assistants.create(
-  name="Buzzfeed Quiz Generator Bot",
+  name=name,
   description="Let's have some fun! You will generate short, zany quizzes in the style of mid 2010's buzzfeed quizzicles",
   instructions = instructions,
   model="gpt-4-1106-preview",

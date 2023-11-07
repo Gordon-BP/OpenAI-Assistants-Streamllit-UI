@@ -18,7 +18,10 @@ from logger import logger
 
 load_dotenv()
 
-st.title("Buzzfeed Quiz Generator!")
+if os.environ.get("OPENAI_ASSISTANT_NAME"):
+    st.title(os.environ.get("OPENAI_ASSISTANT_NAME"))
+if os.environ.get("QUIZ_DESCRIPTION"):
+    st.markdown(os.environ.get("QUIZ_DESCRIPTION"))
 client = openai.Client(api_key=os.environ["OPENAI_API_KEY"])
 with open('style.css') as f:
     css = f.read()

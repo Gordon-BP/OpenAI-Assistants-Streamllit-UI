@@ -1,3 +1,4 @@
 OPENAI_API_KEY = sk-123abc
 LOGFILE = 'all.log'
 ASSISTANT_NAME = "Sleepover Quiz Bot"
+QUIZ_DESCRIPTION = "From the creators of classic quizzes like 'Which pasta dish is your soulmate?' and  'What's the best power tool to fix your broken heart?' comes the new, AI-powered quiz generator!\n\nStart chatting below to get started! "
