@@ -1,0 +1,33 @@
+{
+    "name": "show_buttons",
+    "description": "Show a set of buttons choices to the user",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "A prompt to be displayed above the buttons"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+                "type": "object",
+                "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "Text that is shown on the button"
+                },
+                "value": {
+                    "type": "string",
+                    "description": "a value passed when the button is clicked"
+                }
+                }
+          }
+        }
+      },
+    "required": [
+      "text",
+      "choices"
+    ]
+}
+  }

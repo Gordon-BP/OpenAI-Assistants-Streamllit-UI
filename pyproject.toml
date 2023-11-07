@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "openai-assistants-streamllit-ui"
+version = "0.0.1"
+description = "a basic Streamlit UI to consume openai assistant APi"
+authors = ["Gordon Clark <gordy@hanakano.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+streamlit = "^1.28.1"
+openai = "^1.1.1"
+nanoid = "^2.0.0"
+python-dotenv = "^1.0.0"
+black = "^23.10.1"
+pydantic = "^2.4.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

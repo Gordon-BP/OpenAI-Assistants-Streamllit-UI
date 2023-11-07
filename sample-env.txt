@@ -1,0 +1,3 @@
+OPENAI_API_KEY = sk-123abc
+LOGFILE = 'all.log'
+ASSISTANT_NAME = "Sleepover Quiz Bot"
