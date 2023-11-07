@@ -100,12 +100,11 @@ def getBotResponse(userEvent: Event) -> Event:
                     ),
                 ]
     if run.status == "completed":
-        logger.debug("No required actions, I think...")
+        logger.debug("No required actions, sending messages...")
         messages = client.beta.threads.messages.list(
             thread_id=st.session_state.threadId
         )
         logger.debug(messages)
-        logger.debug(type(messages))
         event_dict["botReply"] = [
             BotMessage(
                 type="text",

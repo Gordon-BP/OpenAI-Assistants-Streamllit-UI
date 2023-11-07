@@ -31,3 +31,18 @@ You can also create the assistant yourself through the [OpenAI Assistant Playgro
 ```
 poetry run streamlit run bot-ui.py
 ```
+
+## Features:
+
+### Assistants Beta with Threads and Runs
+
+Leverages the new Assistant API to create and interact with OpenAI Assistants. Also uses their threads and runs endpoints to keep track of state and tool use.
+
+### Custom tools
+
+Gives agents a tool to send a set of buttons to the chat. Very useful!
+
+
+### Handle whatever user inputs
+
+Because we have the power of (cheaper) GPT4.5-Turbo, the Assistant can handle most anything users throw at it. Tons of fun!
