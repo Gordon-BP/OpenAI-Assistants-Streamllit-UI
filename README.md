@@ -1,9 +1,8 @@
 # OpenAI-Assistants-Streamllit-UI
 A basic streamlit UI with pydantic classes for consuming API calls from the new OpenAI assistants API
 
-![we get rate limited an awful lot these days](/img/rate_limit.png)
+![here is what it looks like](/img/screenshot.png)
 
-## 😅 Tried to get a good screenshot but the poor servers are under a lot of load right now
 
 
 ## Quick Start
@@ -58,9 +57,19 @@ Includes pydantic classes for all data types, type hints everywhere, and docstri
 
 ## TODO:
 
+- [ ] Fix scrolling issue on free text submission
 - [ ] More tools for bot message types:
     - [ ] Dropdowns
     - [x] Images
     - [ ] Carousels
 - [x] Add DALLE-3 tool
 - [ ] Save quiz questions and answers
+
+### Is this happening to you?
+
+![getting rate limited oh nooo](img/rate_limit.png)
+
+**Try these things to help:**
+* Use a different model, like 3.5-Turbo or the non 1106 versions
+* Ask to borrow a friend's API key (especially if that friend has good billing history)
+* Touch grass for a while and come back

@@ -57,10 +57,27 @@ def getBotResponse(userEvent: Event) -> Event:
             thread_id=st.session_state.threadId,
         )
         logger.debug(f"Current run status is {run.status}")
+    event_dict = userEvent.model_dump()
+    # Then, we actually need to send the user reply to the model
+    if run.status == "failed":
+        # Early termination because run failure, usually because of rate limiting
+        logger.debug(f"Run failed: {run.last_error.code}. {run.last_error.message}")
+        event_dict["botReply"] = [
+            BotMessage(
+                type="text",
+                payload=BotTextMessage(
+                    text=f"Sorry, there was an error in the chat: {run.last_error.code}. {run.last_error.message}",
+                    useMarkdown=True,
+                ),
+            ),
+        ]
+        event_dict["direction"] = "outgoing"
+        botEvent = Event(**event_dict)
+        return botEvent
+    
     if run.status == "requires_action": 
         # The last message was a tool use, so we have to submit user response as a tool call output
-        logger.debug("Run requires action!")
-        event_dict = userEvent.model_dump()
+        logger.debug("Submitting user input as tool output")
         event_dict["userInput"] = event_dict["payload"]["text"]
         client.beta.threads.runs.submit_tool_outputs(
             run_id=st.session_state.runId,
@@ -78,52 +95,85 @@ def getBotResponse(userEvent: Event) -> Event:
         run = client.beta.threads.runs.retrieve(
             run_id=st.session_state.runId, thread_id=st.session_state.threadId
         )
-        while run.status == "in_progress":
-            logger.debug("Submitted user input, waiting....")
-            time.sleep(1)
-            run = client.beta.threads.runs.retrieve(
-                run_id=st.session_state.runId,
-                thread_id=st.session_state.threadId,
+    if run.status == "completed":
+        # The last message was normal text, so we need to add a new text message
+        logger.debug("Adding text message to thread")
+        client.beta.threads.messages.create(
+            thread_id=st.session_state.threadId,
+            content=str(event_dict['payload']),
+            role="user",
+        )
+        # This is where we start the next run?
+        logger.debug(f"Starting new run...")
+        run = client.beta.threads.runs.create(
+            #run_id=st.session_state.runId,
+            assistant_id=st.session_state.assistantId,
+            thread_id=st.session_state.threadId
             )
-            logger.debug(f"Current run status is {run.status}")
+        st.session_state.runId = run.id
+        run = client.beta.threads.runs.retrieve(
+            run_id=st.session_state.runId,
+            thread_id=st.session_state.threadId,
+        )
+    logger.debug(f"Run is now: {run}")
+    # Now that we have sent things to the API, we wait for the response
+    while run.status == "in_progress":
+        logger.debug("Submitted new user input, waiting....")
+        time.sleep(1)
+        run = client.beta.threads.runs.retrieve(
+            run_id=st.session_state.runId,
+            thread_id=st.session_state.threadId,
+        )
+        logger.debug(f"Current run status is {run.status}")
 
-        logger.debug("Received stuff back from the assistant!")
-        if run.status == "requires_action":
-            logger.debug(
-                f"Here is the returned obj from Assistant:\n{run.required_action.submit_tool_outputs.tool_calls[0]}"
-            )
-            for tool_call in run.required_action.submit_tool_outputs.tool_calls:
-                logger.debug(f"Processing tool call {tool_call.function.name}")
-                if tool_call.function.name == "show_buttons":
-                    logger.debug("Showing buttons...")
-                    args = json.loads(tool_call.function.arguments)
-                    text, choices = args["text"], args["choices"]
-                    event_dict["botReply"].append(
-                        BotMessage(
-                            type="button",
-                            payload=BotButtonMessage(
-                                text=text,
-                                choices=[
-                                    Choice(label=n["label"], value=n["value"])
-                                    for n in choices
-                                ],
-                                active=True,
-                            ),
+    logger.debug("Received stuff back from the assistant!")
+    if run.status == "requires_action":
+        logger.debug(
+            f"Here is the returned obj from Assistant:\n{run.required_action.submit_tool_outputs.tool_calls[0]}"
+        )
+        for tool_call in run.required_action.submit_tool_outputs.tool_calls:
+            logger.debug(f"Processing tool call {tool_call.function.name}")
+            if tool_call.function.name == "show_buttons":
+                logger.debug("Showing buttons...")
+                args = json.loads(tool_call.function.arguments)
+                text, choices = args["text"], args["choices"]
+                event_dict["botReply"].append(
+                    BotMessage(
+                        type="button",
+                        payload=BotButtonMessage(
+                            text=text,
+                            choices=[
+                                Choice(label=n["label"], value=n["value"])
+                                for n in choices
+                            ],
+                            active=True,
                         ),
-                    )
-                if tool_call.function.name == "generate_image":
-                    logger.debug("Generating image...")
-                    args = json.loads(tool_call.function.arguments)
-                    prompt = args['prompt']
-                    event_dict['botReply'].append(
-                        BotMessage(
-                            type="image",
-                            payload=BotImageMessage(
-                                url=generateImage(prompt)
-                            )
+                    ),
+                )
+            if tool_call.function.name == "generate_image":
+                logger.debug("Generating image...")
+                args = json.loads(tool_call.function.arguments)
+                prompt = args['prompt']
+                event_dict['botReply'].append(
+                    BotMessage(
+                        type="image",
+                        payload=BotImageMessage(
+                            url=generateImage(prompt)
                         )
                     )
-            
+                )
+                # Tell the API that the image was successfully generated
+                client.beta.threads.runs.submit_tool_outputs(
+                    run_id=st.session_state.runId,
+                    thread_id=st.session_state.threadId,
+                    tool_outputs=[
+                        {
+                            "tool_call_id": run.required_action.submit_tool_outputs.tool_calls[0].id,
+                            "output": "{\"status\":200}",
+                        }
+                    ],
+                )
+        
     if run.status == "completed":
         logger.debug("No required actions, sending messages...")
         messages = client.beta.threads.messages.list(
@@ -140,6 +190,7 @@ def getBotResponse(userEvent: Event) -> Event:
             ),
         ]
     if run.status == "failed":
+        # Early termination because run failure, usually because of rate limiting
         logger.debug(f"Run failed: {run.last_error.code}. {run.last_error.message}")
         event_dict["botReply"] = [
             BotMessage(
@@ -150,6 +201,7 @@ def getBotResponse(userEvent: Event) -> Event:
                 ),
             ),
         ]
+
     event_dict["direction"] = "outgoing"
     botEvent = Event(**event_dict)
     return botEvent
@@ -178,11 +230,11 @@ def makeUserMessage(userInput: Dict[str, str] = {}) -> Event:
     Returns:
     - Event: An Event object representing the user's message.
     """
-    if not userInput and st.session_state["userInput"]:
-        userInput = {"type": "text", "text": st.session_state["userInput"]}
+    if not userInput and ("userInput" in st.session_state):
+        userInput = {"type": "text", "text": st.session_state['userInput']}
         logger.info(f"User pressed button: {st.session_state['userInput']}")
     else:
-        logger.info(f"User said: {userInput['text']}")
+        logger.info(f"User said: {userInput}")
     deactivateButtons()
     userEvent = Event(
         userId=st.session_state.userId,
@@ -205,6 +257,8 @@ def init_session_state():
     assistant = client.beta.assistants.retrieve(assistant_id=os.environ.get("OPENAI_ASSISTANT_ID"))
     if "threadId" not in st.session_state:
         st.session_state.threadId = thread.id
+    if "assistantId" not in st.session_state:
+        st.session_state.assistantId = assistant.id
     if "run" not in st.session_state:
         run = client.beta.threads.runs.create(
             thread_id=thread.id, assistant_id=assistant.id
@@ -279,11 +333,34 @@ def init_session_state():
                     ),
                 }
             ]
+        if run.status == "completed":
+            logger.debug("Message with no buttons")
+            logger.debug(f"Here is the run:{run}")
+            messages = client.beta.threads.messages.list(
+                thread_id=st.session_state.threadId
+                )
+            st.session_state.messages = [
+                {
+                "role":"assistant",
+                "content": Event(
+                    userId=st.session_state.userId,
+                    conversationId=st.session_state.conversationId,
+                    direction="outgoing",
+                    botReply=[
+                        BotMessage(
+                            type="text",
+                            payload=BotTextMessage(
+                                text=messages.data[0].content[0].text.value,
+                                useMarkdown=True,
+                    ),
+                )]
+                )
+            }]
 
 
 # Initialize messages with welcome message
 if __name__ == "__main__":
-    if "userId" not in st.session_state:
+    if "messages" not in st.session_state:
         with st.chat_message("assistant"):
             with st.spinner("Loading quiz..."):
                 init_session_state()
@@ -310,7 +387,7 @@ if __name__ == "__main__":
         logger.debug("Processing user input...")
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                botEvent = getBotResponse(st.session_state.messages[-1]["content"])
+                botEvent = getBotResponse(st.session_state.messages[-1]['content'])
                 st.session_state.messages.append(
                     {"role": "assistant", "content": botEvent}
                 )

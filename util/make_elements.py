@@ -48,7 +48,7 @@ def makeButtons(payload: BotButtonMessage, onClick:Callable) -> st.delta_generat
                     label=payload.choices[i].label,
                     key=generate(size=8),
                     disabled=not (payload.active),
-                    on_click=onClick(),
+                    on_click=onClick,
                     args=[{"type": "button", "text": payload.choices[i].value}],
                 )
     return msg
