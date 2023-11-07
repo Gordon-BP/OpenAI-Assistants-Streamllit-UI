@@ -1,7 +1,7 @@
 import openai
 import os, json
 from dotenv import load_dotenv, set_key, find_dotenv
-from logger import logger
+from util.logger import logger
 
 dotenv_path = find_dotenv(usecwd=True)
 if not dotenv_path:
