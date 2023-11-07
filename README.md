@@ -1,5 +1,5 @@
 # OpenAI-Assistants-Streamllit-UI
-A basic streamlit UI with pydantic classes for consuming API calls from the new OpenAI assistants API
+A basic streamlit UI for consuming API calls from the new OpenAI assistants API! Quick way to show buttons, free text and (coming soon) images from your Assistant.
 
 ![here is what it looks like](/img/ss-with-buttons.png)
 
@@ -7,7 +7,7 @@ A basic streamlit UI with pydantic classes for consuming API calls from the new 
 
 ## Quick Start
 
-1. Create a .env file (can use the sample as a template) with your OpenAI API key, a name for your assistant, and an optional description
+1. Create a .env file (can use the sample as a template) with your OpenAI API key, a name for your assistant, and an optional description.
 
 2. Initialize your virtual environment with poetry. If you have not already installed poetry, you can do so with:
 ```
