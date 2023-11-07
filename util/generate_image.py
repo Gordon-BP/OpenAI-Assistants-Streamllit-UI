@@ -1,6 +1,6 @@
 import openai
 import os
-from pydantic_classes import BotImageMessage
+from util.pydantic_classes import BotImageMessage
 from dotenv import load_dotenv
 
 load_dotenv()

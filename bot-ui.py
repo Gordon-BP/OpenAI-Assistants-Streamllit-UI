@@ -16,6 +16,7 @@ from util.make_elements import (
     makeMarkdown,
     makeText,
 )
+from util.generate_image import generateImage
 import json
 import time
 import openai
@@ -43,9 +44,7 @@ def getBotResponse(userEvent: Event) -> Event:
     Returns:
     - Event: An Event object containing the bot's response.
     """
-    event_dict = userEvent.model_dump()
-    event_dict["userInput"] = event_dict["payload"]["text"]
-    # event_dict["payload"] = {}
+    # First we need to ensure the run state is ready to receive a new event
     run = client.beta.threads.runs.retrieve(
         run_id=st.session_state.runId,
         thread_id=st.session_state.threadId,
@@ -58,13 +57,11 @@ def getBotResponse(userEvent: Event) -> Event:
             thread_id=st.session_state.threadId,
         )
         logger.debug(f"Current run status is {run.status}")
-    if run.status == "requires_action":
+    if run.status == "requires_action": 
+        # The last message was a tool use, so we have to submit user response as a tool call output
         logger.debug("Run requires action!")
-        # Turn the tool use into button class
-        logger.debug(
-            f"Run tool output id:\n{run.required_action.submit_tool_outputs.tool_calls[0].id}"
-        )
-        # call our new assistant
+        event_dict = userEvent.model_dump()
+        event_dict["userInput"] = event_dict["payload"]["text"]
         client.beta.threads.runs.submit_tool_outputs(
             run_id=st.session_state.runId,
             thread_id=st.session_state.threadId,
@@ -77,6 +74,7 @@ def getBotResponse(userEvent: Event) -> Event:
                 }
             ],
         )
+        # After submitting the userResponse, wait for processing to complete
         run = client.beta.threads.runs.retrieve(
             run_id=st.session_state.runId, thread_id=st.session_state.threadId
         )
@@ -88,30 +86,44 @@ def getBotResponse(userEvent: Event) -> Event:
                 thread_id=st.session_state.threadId,
             )
             logger.debug(f"Current run status is {run.status}")
+
         logger.debug("Received stuff back from the assistant!")
         if run.status == "requires_action":
             logger.debug(
                 f"Here is the returned obj from Assistant:\n{run.required_action.submit_tool_outputs.tool_calls[0]}"
             )
-            asst_args = run.required_action.submit_tool_outputs.tool_calls[0]
-            #TODO Add logic to switch between making buttons and making images
-            if asst_args:
-                logger.debug(asst_args.function.arguments)
-                data = json.loads(asst_args.function.arguments)
-                text, choices = data["text"], data["choices"]
-                event_dict["botReply"] = [
-                    BotMessage(
-                        type="button",
-                        payload=BotButtonMessage(
-                            text=text,
-                            choices=[
-                                Choice(label=n["label"], value=n["value"])
-                                for n in choices
-                            ],
-                            active=True,
+            for tool_call in run.required_action.submit_tool_outputs.tool_calls:
+                logger.debug(f"Processing tool call {tool_call.function.name}")
+                if tool_call.function.name == "show_buttons":
+                    logger.debug("Showing buttons...")
+                    args = json.loads(tool_call.function.arguments)
+                    text, choices = args["text"], args["choices"]
+                    event_dict["botReply"].append(
+                        BotMessage(
+                            type="button",
+                            payload=BotButtonMessage(
+                                text=text,
+                                choices=[
+                                    Choice(label=n["label"], value=n["value"])
+                                    for n in choices
+                                ],
+                                active=True,
+                            ),
                         ),
-                    ),
-                ]
+                    )
+                if tool_call.function.name == "generate_image":
+                    logger.debug("Generating image...")
+                    args = json.loads(tool_call.function.arguments)
+                    prompt = args['prompt']
+                    event_dict['botReply'].append(
+                        BotMessage(
+                            type="image",
+                            payload=BotImageMessage(
+                                url=generateImage(prompt)
+                            )
+                        )
+                    )
+            
     if run.status == "completed":
         logger.debug("No required actions, sending messages...")
         messages = client.beta.threads.messages.list(
