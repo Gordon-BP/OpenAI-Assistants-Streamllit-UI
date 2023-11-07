@@ -1,6 +1,8 @@
 # OpenAI-Assistants-Streamllit-UI
 A basic streamlit UI with pydantic classes for consuming API calls from the new OpenAI assistants API
 
+![we get rate limited an awful lot these days](/img/rate_limit.png)
+
 ## Quick Start
 
 1. Create a .env file (can use the sample as a template) with your OpenAI API key, a name for your assistant, and an optional description
