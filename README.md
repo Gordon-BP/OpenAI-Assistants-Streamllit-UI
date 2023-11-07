@@ -46,3 +46,12 @@ Gives agents a tool to send a set of buttons to the chat. Very useful!
 ### Handle whatever user inputs
 
 Because we have the power of (cheaper) GPT4.5-Turbo, the Assistant can handle most anything users throw at it. Tons of fun!
+
+## TODO:
+
+- [ ] More tools for bot message types:
+    - [ ] Dropdowns
+    - [ ] Images
+    - [ ] Carousels
+- [ ] Add DALLE-3 tool when it is available
+- [ ] Save quiz questions and answers
