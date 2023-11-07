@@ -52,9 +52,9 @@ Leverages the new [Assistant API](https://platform.openai.com/docs/api-reference
 [Gives agents a tool](https://platform.openai.com/docs/assistants/tools) to send a set of buttons to the chat. Very useful!
 
 
-### Handle whatever user inputs
+### Pydantic Classes and Type Hints
 
-Because we have the power of (cheaper) GPT4.5-Turbo, the Assistant can handle most anything users throw at it. Tons of fun!
+Includes pydantic classes for all data types, type hints everywhere, and docstrings on all functions.
 
 ## TODO:
 

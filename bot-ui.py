@@ -1,13 +1,20 @@
 import streamlit as st
 from nanoid import generate
 from typing import Dict
-from pydantic_classes import (
+from util.pydantic_classes import (
     Event,
     BotMessageTypes,
     BotMessage,
     BotButtonMessage,
+    BotImageMessage,
     BotTextMessage,
     Choice,
+)
+from util.make_elements import (
+    makeButtons,
+    makeImage,
+    makeMarkdown,
+    makeText,
 )
 import json
 import time
@@ -23,14 +30,19 @@ if os.environ.get("OPENAI_ASSISTANT_NAME"):
 if os.environ.get("QUIZ_DESCRIPTION"):
     st.markdown(os.environ.get("QUIZ_DESCRIPTION"))
 client = openai.Client(api_key=os.environ["OPENAI_API_KEY"])
-with open('style.css') as f:
-    css = f.read()
-
-st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
 def getBotResponse(userEvent: Event) -> Event:
-    # Reverses the string, for now
-    # In the future, calls the API
+    """
+    Retrieves the bot response for a given user event.
+
+    This function uses the new assistants endpoints to get bot response.
+
+    Args:
+    - userEvent: An Event object that contains the user's input.
+
+    Returns:
+    - Event: An Event object containing the bot's response.
+    """
     event_dict = userEvent.model_dump()
     event_dict["userInput"] = event_dict["payload"]["text"]
     # event_dict["payload"] = {}
@@ -82,6 +94,7 @@ def getBotResponse(userEvent: Event) -> Event:
                 f"Here is the returned obj from Assistant:\n{run.required_action.submit_tool_outputs.tool_calls[0]}"
             )
             asst_args = run.required_action.submit_tool_outputs.tool_calls[0]
+            #TODO Add logic to switch between making buttons and making images
             if asst_args:
                 logger.debug(asst_args.function.arguments)
                 data = json.loads(asst_args.function.arguments)
@@ -131,6 +144,11 @@ def getBotResponse(userEvent: Event) -> Event:
 
 
 def deactivateButtons() -> None:
+    """
+    Deactivates buttons in the most recent message in the session state.
+
+    This function iterates over the last event's bot replies and deactivates any buttons found.
+    """
     prevEvent = st.session_state.messages[-1]["content"]
     for reply in prevEvent.botReply:
         if reply.type == BotMessageTypes.button:
@@ -139,6 +157,15 @@ def deactivateButtons() -> None:
 
 
 def makeUserMessage(userInput: Dict[str, str] = {}) -> Event:
+    """
+    Creates a user message event from the given input and updates the session state.
+
+    Args:
+    - userInput: A dictionary containing the user's input text, if available.
+
+    Returns:
+    - Event: An Event object representing the user's message.
+    """
     if not userInput and st.session_state["userInput"]:
         userInput = {"type": "text", "text": st.session_state["userInput"]}
         logger.info(f"User pressed button: {st.session_state['userInput']}")
@@ -154,39 +181,13 @@ def makeUserMessage(userInput: Dict[str, str] = {}) -> Event:
     st.session_state.messages.append({"role": "user", "content": userEvent})
     return userEvent
 
-
-def makeButtons(payload: BotButtonMessage) -> st.delta_generator.DeltaGenerator:
-    with st.chat_message("assistant") as msg:
-        st.markdown(payload.text)
-        # The idea is to format the columns like [1,1,1, 7] with a 1 for each choice
-        # This needs to be replaced by a more robust auto-layout
-        col_layout = [1] * len(payload.choices) + [6 - len(payload.choices)]
-        cols = st.columns(col_layout)
-        for i in range(len(cols) - 1):
-            with cols[i]:
-                st.button(
-                    label=payload.choices[i].label,
-                    key=generate(size=8),
-                    disabled=not (payload.active),
-                    on_click=makeUserMessage,
-                    args=[{"type": "button", "text": payload.choices[i].value}],
-                )
-    return msg
-
-
-def makeMarkdown(payload: BotTextMessage) -> st.delta_generator.DeltaGenerator:
-    with st.chat_message("assistant") as msg:
-        st.markdown(payload.text)
-    return msg
-
-
-def makeText(payload: BotTextMessage) -> st.delta_generator.DeltaGenerator:
-    with st.chat_message("assistant") as msg:
-        st.text(payload.text)
-    return msg
-
-
 def init_session_state():
+    """
+    Initializes the Streamlit session state with necessary values.
+
+    This includes creating a new thread and run for the OpenAI assistant,
+    generating a new user ID and conversation ID, and preparing the first message.
+    """
     logger.debug("Initializing streamlit session...")
     thread = client.beta.threads.create(messages=[{"role": "user", "content": "Hello"}])
     assistant = client.beta.assistants.retrieve(assistant_id=os.environ.get("OPENAI_ASSISTANT_ID"))
@@ -281,7 +282,7 @@ if __name__ == "__main__":
             for reply in message["content"].botReply:
                 if reply.type == BotMessageTypes.button:
                     logger.debug("Writing bot button message to chat...")
-                    makeButtons(reply.payload)
+                    makeButtons(reply.payload, makeUserMessage)
                 if reply.type == BotMessageTypes.text:
                     if reply.payload.useMarkdown:
                         logger.debug("Writing bot markdown message to chat...")
@@ -304,5 +305,5 @@ if __name__ == "__main__":
                 st.rerun()
     logger.debug("Waiting for user input...")
     prompt = st.chat_input(
-        "Type your response here", key="userInput", on_submit=makeUserMessage
+        "Type your response here", key="userInput", on_submit=makeUserMessage,
     )
