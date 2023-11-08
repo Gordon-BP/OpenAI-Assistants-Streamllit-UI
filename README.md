@@ -62,7 +62,7 @@ Includes pydantic classes for all data types, type hints everywhere, and docstri
     - [ ] Dropdowns
     - [x] Images
     - [ ] Carousels
-- [ ] Add DALLE-3 tool
+- [~] Add DALLE-3 tool
 - [ ] Save quiz questions and answers
 
 ### Is this happening to you?
