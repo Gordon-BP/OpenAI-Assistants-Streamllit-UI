@@ -18,11 +18,11 @@ def makeImage(payload: BotImageMessage)-> st.delta_generator.DeltaGenerator:
     Returns:
     - A Streamlit DeltaGenerator object representing the chat message.
     """
-    with st.chat_message("assistant") as msg:
+    with st.container() as c:
         cols =st.cols([1,1]) #image should only take up half of total width
         with cols[0]:
             st.image(urls=payload.url, use_column_width=True)
-    return msg
+    return c
 
 
 
@@ -36,7 +36,7 @@ def makeButtons(payload: BotButtonMessage, onClick:Callable) -> st.delta_generat
     Returns:
     - A Streamlit DeltaGenerator object representing the chat message.
     """
-    with st.chat_message("assistant") as msg:
+    with st.container() as c:
         st.markdown(payload.text)
         # The idea is to format the columns like [1,1,1, 7] with a 1 for each choice
         # This needs to be replaced by a more robust auto-layout
@@ -51,7 +51,7 @@ def makeButtons(payload: BotButtonMessage, onClick:Callable) -> st.delta_generat
                     on_click=onClick,
                     args=[{"type": "button", "text": payload.choices[i].value}],
                 )
-    return msg
+    return c
 
 
 def makeText(payload: BotTextMessage) -> st.delta_generator.DeltaGenerator:
@@ -64,9 +64,9 @@ def makeText(payload: BotTextMessage) -> st.delta_generator.DeltaGenerator:
     Returns:
     - A Streamlit DeltaGenerator object representing the chat message.
     """
-    with st.chat_message("assistant") as msg:
+    with st.container() as c:
         st.text(payload.text)
-    return msg
+    return c
 
 def makeMarkdown(payload: BotTextMessage) -> st.delta_generator.DeltaGenerator:
     """
@@ -78,6 +78,6 @@ def makeMarkdown(payload: BotTextMessage) -> st.delta_generator.DeltaGenerator:
     Returns:
     - A Streamlit DeltaGenerator object representing the chat message.
     """
-    with st.chat_message("assistant") as msg:
+    with st.container() as c:
         st.markdown(payload.text)
-    return msg
+    return c

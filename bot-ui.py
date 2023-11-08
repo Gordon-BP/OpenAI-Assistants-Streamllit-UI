@@ -61,7 +61,7 @@ def getBotResponse(userEvent: Event) -> Event:
     # Then, we actually need to send the user reply to the model
     if run.status == "failed":
         # Early termination because run failure, usually because of rate limiting
-        logger.debug(f"Run failed: {run.last_error.code}. {run.last_error.message}")
+        logger.error(f"Run failed: {run.last_error.code}. {run.last_error.message}")
         event_dict["botReply"] = [
             BotMessage(
                 type="text",
@@ -126,11 +126,8 @@ def getBotResponse(userEvent: Event) -> Event:
         )
         logger.debug(f"Current run status is {run.status}")
 
-    logger.debug("Received stuff back from the assistant!")
+    logger.info("Received payload back from the assistant!")
     if run.status == "requires_action":
-        logger.debug(
-            f"Here is the returned obj from Assistant:\n{run.required_action.submit_tool_outputs.tool_calls[0]}"
-        )
         for tool_call in run.required_action.submit_tool_outputs.tool_calls:
             logger.debug(f"Processing tool call {tool_call.function.name}")
             if tool_call.function.name == "show_buttons":
@@ -190,7 +187,7 @@ def getBotResponse(userEvent: Event) -> Event:
         ]
     if run.status == "failed":
         # Early termination because run failure, usually because of rate limiting
-        logger.debug(f"Run failed: {run.last_error.code}. {run.last_error.message}")
+        logger.error(f"Run failed: {run.last_error.code}. {run.last_error.message}")
         event_dict["botReply"] = [
             BotMessage(
                 type="text",
@@ -258,7 +255,7 @@ def init_session_state():
         st.session_state.threadId = thread.id
     if "assistantId" not in st.session_state:
         st.session_state.assistantId = assistant.id
-    if "run" not in st.session_state:
+    if "runId" not in st.session_state:
         run = client.beta.threads.runs.create(
             thread_id=thread.id, assistant_id=assistant.id
         )
@@ -271,47 +268,70 @@ def init_session_state():
     run = client.beta.threads.runs.retrieve(
         run_id=st.session_state.runId, thread_id=st.session_state.threadId
     )
-    logger.debug(run.status)
     # Wait for run to finish
     while run.status == "in_progress":
-        logger.debug("Run intializing, waiting...")
+        logger.debug("Run initializing, waiting...")
         time.sleep(1)
         run = client.beta.threads.runs.retrieve(
             run_id=st.session_state.runId, thread_id=st.session_state.threadId
         )
-        logger.debug(run.status)
-    # Add the first message
+        logger.debug(f"Run is {run.status}")
+    # Add the first bot message
     if "messages" not in st.session_state:
         if run.status == "requires_action":
-            logger.debug(f"Here is the returned obj from Assistant:\n{run}")
-            asst_args = run.required_action.submit_tool_outputs.tool_calls[0]
-            if asst_args:
-                logger.debug(asst_args.function.arguments)
-                data = json.loads(asst_args.function.arguments)
-                text, choices = data["text"], data["choices"]
-            st.session_state.messages = [
-                {
-                    "role": "assistant",
-                    "content": Event(
-                        userId=st.session_state.userId,
-                        conversationId=st.session_state.conversationId,
-                        direction="outgoing",
-                        botReply=[
-                            BotMessage(
-                                type="button",
-                                payload=BotButtonMessage(
-                                    text=text,
-                                    choices=[
-                                        Choice(label=n["label"], value=n["value"])
-                                        for n in choices
-                                    ],
-                                    active=True,
-                                ),
+            for tool_call in run.required_action.submit_tool_outputs.tool_calls:
+                logger.debug(f"Processing tool call {tool_call.function.name}")
+                if tool_call.function.name == "show_buttons":
+                    logger.debug("Showing buttons...")
+                    args = json.loads(tool_call.function.arguments)
+                    text, choices = args["text"], args["choices"]
+                    st.session_state.messages = [{
+                        "role":"assistant",
+                        "content":Event(
+                            userId=st.session_state.userId,
+                            conversationId=st.session_state.conversationId,
+                            direction="outgoing",
+                            botReply=[BotMessage(
+                            type="button",
+                            payload=BotButtonMessage(
+                                text=text,
+                                choices=[
+                                    Choice(label=n["label"], value=n["value"])
+                                    for n in choices
+                                ],
+                                active=True,
+                            ),
+                        )],
+                    )}]
+                if tool_call.function.name == "generate_image":
+                    logger.debug("Generating image...")
+                    args = json.loads(tool_call.function.arguments)
+                    prompt = args['prompt']
+                    st.session_state.messages = [
+                        {
+                            "role":"assistant",
+                            "content":Event(
+                                userId=st.session_state.userId,
+                                conversationId=st.session_state.conversationId,
+                                direction="outgoing",
+                                botReply=[BotMessage(
+                            type="image",
+                            payload=BotImageMessage(
+                                url=generateImage(prompt)
                             )
-                        ],
-                    ),
-                }
-            ]
+                        )]
+                    )}]
+                # Tell the API that the image was successfully generated
+                client.beta.threads.runs.submit_tool_outputs(
+                    run_id=st.session_state.runId,
+                    thread_id=st.session_state.threadId,
+                    tool_outputs=[
+                        {
+                            "tool_call_id": run.required_action.submit_tool_outputs.tool_calls[0].id,
+                            "output": "{\"status\":200}",
+                        }
+                    ],
+                )
         if run.status == "failed":
             st.session_state.messages = [
                 {
@@ -334,7 +354,6 @@ def init_session_state():
             ]
         if run.status == "completed":
             logger.debug("Message with no buttons")
-            logger.debug(f"Here is the run:{run}")
             messages = client.beta.threads.messages.list(
                 thread_id=st.session_state.threadId
                 )
@@ -367,30 +386,41 @@ if __name__ == "__main__":
     # Write messages to app
     for message in st.session_state.messages:
         if message["role"] != "user":
-            for reply in message["content"].botReply:
-                if reply.type == BotMessageTypes.button:
-                    logger.debug("Writing bot button message to chat...")
-                    makeButtons(reply.payload, makeUserMessage)
-                if reply.type == BotMessageTypes.text:
-                    if reply.payload.useMarkdown:
-                        logger.debug("Writing bot markdown message to chat...")
-                        makeMarkdown(reply.payload)
-                    else:
-                        logger.debug("Writing bot text message to chat...")
-                        makeText(reply.payload)
+            with st.chat_message("assistant"):
+                for reply in message["content"].botReply:
+                    if reply.type == BotMessageTypes.button:
+                        logger.debug("Writing bot button message to chat...")
+                        makeButtons(reply.payload, makeUserMessage)
+                    if reply.type == BotMessageTypes.text:
+                        if reply.payload.useMarkdown:
+                            logger.debug("Writing bot markdown message to chat...")
+                            makeMarkdown(reply.payload)
+                        else:
+                            logger.debug("Writing bot text message to chat...")
+                            makeText(reply.payload)
         else:
             with st.chat_message("user"):
                 logger.debug("Writing user message to chat...")
                 st.markdown(message["content"].payload["text"])
     if st.session_state.messages[-1]["role"] != "assistant":
         logger.debug("Processing user input...")
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant") as msg:
             with st.spinner("Thinking..."):
                 botEvent = getBotResponse(st.session_state.messages[-1]['content'])
                 st.session_state.messages.append(
                     {"role": "assistant", "content": botEvent}
                 )
-                st.rerun()
+                for reply in botEvent.botReply:
+                    if reply.type == BotMessageTypes.button:
+                        logger.debug("Writing bot button message to chat...")
+                        makeButtons(reply.payload, makeUserMessage)
+                    if reply.type == BotMessageTypes.text:
+                        if reply.payload.useMarkdown:
+                            logger.debug("Writing bot markdown message to chat...")
+                            makeMarkdown(reply.payload)
+                        else:
+                            logger.debug("Writing bot text message to chat...")
+                            makeText(reply.payload)
     logger.debug("Waiting for user input...")
     prompt = st.chat_input(
         "Type your response here", key="userInput", on_submit=makeUserMessage,
